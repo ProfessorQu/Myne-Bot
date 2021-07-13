@@ -1,5 +1,6 @@
 const mineflayer = require("mineflayer");
 const pvp = require("mineflayer-pvp").plugin;
+const minecraftHawkEye = require("minecrafthawkeye");
 const { pathfinder, Movements, goals } = require("mineflayer-pathfinder");
 const armorManager = require("mineflayer-armor-manager");
 const collectBlock = require("mineflayer-collectblock").plugin;
@@ -7,13 +8,14 @@ const collectBlock = require("mineflayer-collectblock").plugin;
 // Create the bot
 const bot = mineflayer.createBot({
   host: "localhost",
-  port: 50477,
+  port: 52947,
   version: "1.16.5",
   username: "TotallyNotABot",
 });
 
 // Load plugins
 bot.loadPlugin(pvp);
+bot.loadPlugin(minecraftHawkEye);
 bot.loadPlugin(pathfinder);
 bot.loadPlugin(armorManager);
 bot.loadPlugin(collectBlock);
@@ -21,6 +23,7 @@ bot.loadPlugin(collectBlock);
 // Set mcData and movements
 let mcData;
 let movements;
+
 bot.once("spawn", () => {
   mcData = require("minecraft-data")(bot.version);
   movements = new Movements(bot, mcData);
@@ -31,15 +34,13 @@ let boss;
 
 function health(username, args) {
   /** Tell what the current health is */
-  bot.chat(`Mine own current health is: ${bot.health}`);
+  bot.chat(`My current health is: ${bot.health}`);
   console.log(`Health: ${bot.health}`);
 }
 
 function food(username, args) {
   /** Tell what the current food and saturation levels are  */
-  bot.chat(
-    `Mine own food is ${bot.food} and mine own saturation is ${bot.foodSaturation}`
-  );
+  bot.chat(`My food is ${bot.food} and my saturation is ${bot.foodSaturation}`);
   console.log(`Food: ${bot.food}\tSaturation: ${bot.foodSaturation}`);
 }
 
@@ -52,27 +53,23 @@ function items(username, args) {
 
   // Check if we have no items
   if (items.length == 0) {
-    bot.chat(`I currently carryeth with me: nothing`);
+    bot.chat(`I currently carry with me: nothing`);
     console.log(`Items: None`);
   } else {
-    bot.chat(`I currently carryeth with me: ${items}`);
+    bot.chat(`I currently carry with me: ${items}`);
     console.log(`Items: ${items}`);
   }
 }
 
 function drop(username, args) {
   /** Drops an item out of the bot's inventory */
-
   stop(username, args);
 
   const player = bot.players[username];
   if (player.entity === undefined) {
-    bot.chat(`I can't seeth thee, ${username}`);
+    bot.chat(`I can't see you, ${username}`);
     return;
   }
-
-  come(username, args);
-  bot.lookAt(player.entity.position);
 
   let count = 1;
   if (args.length === 3) count = parseInt(args[2]);
@@ -81,35 +78,53 @@ function drop(username, args) {
 
   const itemType = mcData.itemsByName[type];
   if (!itemType) {
-    bot.chat(`I knoweth not any block nam'd ${type}.`);
+    bot.chat(`I don't know any block named ${type}.`);
     return;
   }
   const item = bot.inventory
     .items()
     .find((items) => items.name == itemType.name);
 
-  bot.chat(`H're, has't ${count} ${itemType.displayName}`);
-  bot.toss(itemType, count);
+  if (!item) {
+    bot.chat(`I don't carry that ${itemType.displayName} with me`);
+    return;
+  }
+
+  come(username, args, false);
+  bot.lookAt(player.entity.position);
+
+  console.log(item);
+  console.log(itemType);
+  bot.chat(`Here, have ${count} ${item.displayName}`);
+  bot.toss(item, null, count, (err) => {
+    console.log(err);
+  });
 }
 
-function come(username, args) {
+function come(username, args, log = true) {
   /** The bot comes to the user once */
   stop(username, args);
 
   // Get the player
   const player = bot.players[username];
   if (player.entity === undefined) {
-    bot.chat(`I can't seeth thee, ${username}`);
+    if (log) bot.chat(`I can't see you, ${username}`);
     return;
   }
 
-  bot.chat(`I'm coming to thee, ${username}`);
+  if (log) bot.chat(`I'm coming to you, ${username}`);
 
   // Get the goal for the player and go to it
   const goal = new goals.GoalFollow(player.entity);
   bot.pathfinder.goto(goal, () => {
-    bot.chat(`I did get to ${goal.entity.username}`);
+    if (log) bot.chat(`I got to ${goal.entity.username}`);
   });
+}
+
+function shoot(username, args) {
+  const target = bot.hawkEye.getPlayer(username);
+
+  bot.hawkEye.oneShot(target, "bow");
 }
 
 function mine(username, args) {
@@ -123,7 +138,7 @@ function mine(username, args) {
 
   const blockType = mcData.blocksByName[type];
   if (!blockType) {
-    bot.chat(`I knoweth not any block nam'd ${type}.`);
+    bot.chat(`I don't know any block named ${type}.`);
     return;
   }
 
@@ -134,7 +149,7 @@ function mine(username, args) {
   });
 
   if (blocks.length === 0) {
-    bot.chat("I seeth not yond block nearby.");
+    bot.chat("I see no block nearby.");
     return;
   }
 
@@ -144,7 +159,7 @@ function mine(username, args) {
     targets.push(bot.blockAt(blocks[i]));
   }
 
-  bot.chat(`Hath found ${targets.length} ${type}(s).`);
+  bot.chat(`I found ${targets.length} ${type}(s).`);
 
   bot.collectBlock.collect(targets, (err) => {
     if (err) {
@@ -164,15 +179,12 @@ function guard(username, args, log = true) {
 
   const player = bot.players[username];
   if (player.entity === undefined) {
-    if (log) {
-      bot.chat(`I can't seeth thee, ${username}`);
-    }
+    if (log) bot.chat(`I can't see you, ${username}`);
     return;
   }
 
-  if (log) {
-    bot.chat(`I'm coming to guard thee, ${username}`);
-  }
+  if (log) bot.chat(`I'm coming to guard you, ${username}`);
+
   boss = player;
 
   // Follow the user
@@ -199,10 +211,13 @@ bot.on("chat", (username, message) => {
     food(username, args);
   } else if (args[0] === "items") {
     items(username, args);
-  } else if (args[0] === "drop") {
-    drop(username, args);
+    /** NOTE: This command doesn't work
+   * } else if (args[0] === "drop") {
+    drop(username, args); */
   } else if (args[0] === "come") {
     come(username, args);
+  } else if (args[0] === "shoot") {
+    shoot(username, args);
   } else if (args[0] === "mine") {
     mine(username, args);
   } else if (args[0] === "guard") {
