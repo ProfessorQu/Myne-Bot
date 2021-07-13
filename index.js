@@ -7,7 +7,7 @@ const collectBlock = require("mineflayer-collectblock").plugin;
 // Create the bot
 const bot = mineflayer.createBot({
   host: "localhost",
-  port: 62115,
+  port: 50477,
   version: "1.16.5",
   username: "TotallyNotABot",
 });
@@ -63,6 +63,8 @@ function items(username, args) {
 function drop(username, args) {
   /** Drops an item out of the bot's inventory */
 
+  stop(username, args);
+
   const player = bot.players[username];
   if (player.entity === undefined) {
     bot.chat(`I can't seeth thee, ${username}`);
@@ -92,6 +94,8 @@ function drop(username, args) {
 
 function come(username, args) {
   /** The bot comes to the user once */
+  stop(username, args);
+
   // Get the player
   const player = bot.players[username];
   if (player.entity === undefined) {
@@ -110,6 +114,8 @@ function come(username, args) {
 
 function mine(username, args) {
   /** Makes the bot mine a certain block type (args[1]) amount (args[2]) */
+  stop(username, args);
+
   let count = 1;
   if (args.length === 3) count = parseInt(args[2]);
 
@@ -154,6 +160,8 @@ function mine(username, args) {
 
 function guard(username, args, log = true) {
   /** Gaurd a certain user */
+  stop(username, args);
+
   const player = bot.players[username];
   if (player.entity === undefined) {
     if (log) {
@@ -170,6 +178,13 @@ function guard(username, args, log = true) {
   // Follow the user
   const goal = new goals.GoalFollow(player.entity, 2);
   bot.pathfinder.setGoal(goal, true);
+}
+
+function stop(username, args) {
+  bot.pathfinder.setGoal(null);
+  bot.pvp.attack(null);
+
+  boss = undefined;
 }
 
 bot.on("chat", (username, message) => {
@@ -192,6 +207,8 @@ bot.on("chat", (username, message) => {
     mine(username, args);
   } else if (args[0] === "guard") {
     guard(username, args);
+  } else if (args[0] === "stop") {
+    stop(username, args);
   }
 });
 
