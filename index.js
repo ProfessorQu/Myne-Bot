@@ -8,7 +8,7 @@ const collectBlock = require("mineflayer-collectblock").plugin;
 // Create the bot
 const bot = mineflayer.createBot({
   host: "localhost",
-  port: 65371,
+  port: process.argv[2],
   version: "1.16.5",
   username: "TotallyNotABot",
 });
