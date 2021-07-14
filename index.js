@@ -8,7 +8,7 @@ const collectBlock = require("mineflayer-collectblock").plugin;
 // Create the bot
 const bot = mineflayer.createBot({
   host: "localhost",
-  port: 52947,
+  port: 65371,
   version: "1.16.5",
   username: "TotallyNotABot",
 });
@@ -30,7 +30,10 @@ bot.once("spawn", () => {
   bot.pathfinder.setMovements(movements);
 });
 
-let boss;
+let mode = {
+  name: undefined,
+  target: undefined,
+};
 
 function health(username, args) {
   /** Tell what the current health is */
@@ -120,12 +123,29 @@ function come(username, args, log = true) {
     if (log) bot.chat(`I got to ${goal.entity.username}`);
   });
 }
-
+/*
 function shoot(username, args) {
-  const target = bot.hawkEye.getPlayer(username);
+  const player = bot.players[username];
+  if (player.entity === undefined) {
+    bot.chat(`I can't see you, ${username}`);
+    return;
+  }
 
+  const target = bot.hawkEye.getPlayer(username);
   bot.hawkEye.oneShot(target, "bow");
 }
+
+
+function turret(username, args) {
+  const player = bot.players[username];
+  if (player.entity === undefined) {
+    bot.chat(`I can't see you, ${username}`);
+    return;
+  }
+
+  const target = bot.hawkEye.getPlayer(username);
+}
+*/
 
 function mine(username, args) {
   /** Makes the bot mine a certain block type (args[1]) amount (args[2]) */
@@ -185,7 +205,8 @@ function guard(username, args, log = true) {
 
   if (log) bot.chat(`I'm coming to guard you, ${username}`);
 
-  boss = player;
+  mode.name = "guard";
+  mode.target = player;
 
   // Follow the user
   const goal = new goals.GoalFollow(player.entity, 2);
@@ -196,7 +217,8 @@ function stop(username, args) {
   bot.pathfinder.setGoal(null);
   bot.pvp.attack(null);
 
-  boss = undefined;
+  mode.name = undefined;
+  mode.target = undefined;
 }
 
 bot.on("chat", (username, message) => {
@@ -218,7 +240,9 @@ bot.on("chat", (username, message) => {
     come(username, args);
   } else if (args[0] === "shoot") {
     shoot(username, args);
-  } else if (args[0] === "mine") {
+  } //else if (args[0] === "turret") {
+  //turret(username, args); }
+  else if (args[0] === "mine") {
     mine(username, args);
   } else if (args[0] === "guard") {
     guard(username, args);
@@ -260,12 +284,13 @@ function equipWeapons() {
 
 bot.on("physicTick", () => {
   let mobFilter;
-  if (boss === undefined) {
+  if (mode.name === undefined) {
     mobFilter = (e) =>
       e.type === "mob" && e.position.distanceTo(bot.entity.position) < 8;
   } else {
     mobFilter = (e) =>
-      e.type === "mob" && e.position.distanceTo(boss.entity.position) < 8;
+      e.type === "mob" &&
+      e.position.distanceTo(mode.target.entity.position) < 8;
   }
 
   const mob = bot.nearestEntity(mobFilter);
@@ -277,7 +302,7 @@ bot.on("physicTick", () => {
 });
 
 bot.on("stoppedAttacking", () => {
-  if (boss === undefined) return;
+  if (mode.name === undefined) return;
 
-  guard(boss.username, [], false);
+  guard(mode.target.username, [], false);
 });
