@@ -240,9 +240,10 @@ bot.on("chat", (username, message) => {
     come(username, args);
   } else if (args[0] === "shoot") {
     shoot(username, args);
-  } //else if (args[0] === "turret") {
-  //turret(username, args); }
-  else if (args[0] === "mine") {
+  } else if (args[0] === "turret") {
+    turret(username, args);
+  } else if (args[0] === "mine") {
+  } else if (args[0] === "mine") {
     mine(username, args);
   } else if (args[0] === "guard") {
     guard(username, args);
