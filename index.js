@@ -36,19 +36,19 @@ let mode = {
 };
 
 function health(username, args) {
-  /** Tell what the current health is */
+  /* Tell what the current health is */
   bot.chat(`My current health is: ${bot.health}`);
   console.log(`Health: ${bot.health}`);
 }
 
 function food(username, args) {
-  /** Tell what the current food and saturation levels are  */
+  /* Tell what the current food and saturation levels are  */
   bot.chat(`My food is ${bot.food} and my saturation is ${bot.foodSaturation}`);
   console.log(`Food: ${bot.food}\tSaturation: ${bot.foodSaturation}`);
 }
 
 function items(username, args) {
-  /** List all items in the bots inventory */
+  /* List all items in the bots inventory */
   // Get a list of all the display names
   let items = bot.inventory
     .items()
@@ -65,15 +65,17 @@ function items(username, args) {
 }
 
 function drop(username, args) {
-  /** Drops an item out of the bot's inventory */
+  /* Drops an item out of the bot's inventory */
   stop(username, args);
 
+  // Get player
   const player = bot.players[username];
   if (player.entity === undefined) {
     bot.chat(`I can't see you, ${username}`);
     return;
   }
 
+  // Get parameters
   let count = 1;
   if (args.length === 3) count = parseInt(args[2]);
 
@@ -93,19 +95,21 @@ function drop(username, args) {
     return;
   }
 
+  // Go to the player
   come(username, args, false);
   bot.lookAt(player.entity.position);
 
-  console.log(item);
-  console.log(itemType);
+  // Chat
   bot.chat(`Here, have ${count} ${item.displayName}`);
+  console.log(`Threw ${count} ${item.displayName}`);
+
   bot.toss(item, null, count, (err) => {
     console.log(err);
   });
 }
 
 function come(username, args, log = true) {
-  /** The bot comes to the user once */
+  /* The bot comes to the user once */
   stop(username, args);
 
   // Get the player
@@ -123,34 +127,39 @@ function come(username, args, log = true) {
     if (log) bot.chat(`I got to ${goal.entity.username}`);
   });
 }
-/*
+
 function shoot(username, args) {
+  /* Shoot the player that issued the command */
+  // Test if player exists
   const player = bot.players[username];
   if (player.entity === undefined) {
     bot.chat(`I can't see you, ${username}`);
     return;
   }
 
+  // Get the target and shoot
   const target = bot.hawkEye.getPlayer(username);
   bot.hawkEye.oneShot(target, "bow");
 }
 
-
 function turret(username, args) {
+  /* Shoot all mobs close to the bot */
+  // Test if player exists
   const player = bot.players[username];
   if (player.entity === undefined) {
     bot.chat(`I can't see you, ${username}`);
     return;
   }
 
+  // Get the target and keep shooting
   const target = bot.hawkEye.getPlayer(username);
 }
-*/
 
 function mine(username, args) {
-  /** Makes the bot mine a certain block type (args[1]) amount (args[2]) */
+  /* Makes the bot mine a certain block type (args[1]) amount (args[2]) */
   stop(username, args);
 
+  // Get parameters
   let count = 1;
   if (args.length === 3) count = parseInt(args[2]);
 
@@ -162,6 +171,7 @@ function mine(username, args) {
     return;
   }
 
+  // Find blocks
   const blocks = bot.findBlocks({
     matching: blockType.id,
     maxDistance: 64,
@@ -179,7 +189,8 @@ function mine(username, args) {
     targets.push(bot.blockAt(blocks[i]));
   }
 
-  bot.chat(`I found ${targets.length} ${type}(s).`);
+  bot.chat(`I found ${targets.length} ${blockType.displayName}(s).`);
+  console.log(`Found ${targets.length} ${blockType.displayName}`);
 
   bot.collectBlock.collect(targets, (err) => {
     if (err) {
@@ -189,14 +200,16 @@ function mine(username, args) {
     } else {
       // All blocks have been collected.
       bot.chat("Done.");
+      console.log(`Done mining ${targets.length} ${blockType.displayName}`);
     }
   });
 }
 
 function guard(username, args, log = true) {
-  /** Gaurd a certain user */
+  /* Gaurd a certain user */
   stop(username, args);
 
+  // Get the player
   const player = bot.players[username];
   if (player.entity === undefined) {
     if (log) bot.chat(`I can't see you, ${username}`);
@@ -205,6 +218,7 @@ function guard(username, args, log = true) {
 
   if (log) bot.chat(`I'm coming to guard you, ${username}`);
 
+  // Set the mode
   mode.name = "guard";
   mode.target = player;
 
@@ -214,19 +228,22 @@ function guard(username, args, log = true) {
 }
 
 function stop(username, args) {
+  // Reset the pathfinder and pvp plugins
   bot.pathfinder.setGoal(null);
   bot.pvp.attack(null);
 
+  // Reset mode
   mode.name = undefined;
   mode.target = undefined;
 }
 
 bot.on("chat", (username, message) => {
-  /** Run the commands when a chat message was send */
+  /* Run the commands when a chat message was send */
   if (username === bot.username) return;
 
   args = message.split(" ");
 
+  // Choose command
   if (args[0] === "health") {
     health(username, args);
   } else if (args[0] === "food") {
@@ -243,7 +260,6 @@ bot.on("chat", (username, message) => {
   } else if (args[0] === "turret") {
     turret(username, args);
   } else if (args[0] === "mine") {
-  } else if (args[0] === "mine") {
     mine(username, args);
   } else if (args[0] === "guard") {
     guard(username, args);
@@ -253,11 +269,14 @@ bot.on("chat", (username, message) => {
 });
 
 function equipWeapons() {
+  /* Equip weapons */
   const items = bot.inventory.items();
 
+  // Equip shield
   const shield = items.find((items) => items.name === "shield");
   if (shield) bot.equip(shield, "off-hand");
 
+  // Get sword
   const swords = items.filter((items) => items.name.includes("sword"));
 
   function findSword(name) {
@@ -278,22 +297,25 @@ function equipWeapons() {
     sword = findSword(sword_tier);
   }
 
+  // Test if the bot is not mining or building
   if (!bot.pathfinder.isMining() && !bot.pathfinder.isBuilding() && sword) {
     bot.equip(sword, "hand");
   }
 }
 
 bot.on("physicTick", () => {
+  // Define mobfilter
   let mobFilter;
   if (mode.name === undefined) {
     mobFilter = (e) =>
       e.type === "mob" && e.position.distanceTo(bot.entity.position) < 8;
-  } else {
+  } else if (mode.name === "gaurd") {
     mobFilter = (e) =>
       e.type === "mob" &&
       e.position.distanceTo(mode.target.entity.position) < 8;
   }
 
+  // Get mob
   const mob = bot.nearestEntity(mobFilter);
 
   if (mob) {
@@ -303,7 +325,9 @@ bot.on("physicTick", () => {
 });
 
 bot.on("stoppedAttacking", () => {
-  if (mode.name === undefined) return;
-
-  guard(mode.target.username, [], false);
+  if (mode.name === undefined) {
+    return;
+  } else if (mode.name === "guard") {
+    guard(mode.target.username, [], false);
+  }
 });
