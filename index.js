@@ -144,15 +144,14 @@ function shoot(username, args) {
 
 function turret(username, args) {
   /* Shoot all mobs close to the bot */
-  // Test if player exists
-  const player = bot.players[username];
-  if (player.entity === undefined) {
-    bot.chat(`I can't see you, ${username}`);
-    return;
-  }
 
-  // Get the target and keep shooting
-  const target = bot.hawkEye.getPlayer(username);
+  stop(username, args);
+
+  bot.chat("Activating turret mode");
+
+  // Set the mode
+  mode.name = "turret";
+  mode.target = undefined;
 }
 
 function mine(username, args) {
@@ -205,26 +204,26 @@ function mine(username, args) {
   });
 }
 
-function guard(username, args, log = true) {
-  /* Gaurd a certain user */
+function guard(username, args) {
+  /* Guard a certain user */
   stop(username, args);
 
   // Get the player
   const player = bot.players[username];
   if (player.entity === undefined) {
-    if (log) bot.chat(`I can't see you, ${username}`);
+    bot.chat(`I can't see you, ${username}`);
     return;
   }
 
-  if (log) bot.chat(`I'm coming to guard you, ${username}`);
-
-  // Set the mode
-  mode.name = "guard";
-  mode.target = player;
+  bot.chat(`I'm coming to guard you, ${username}`);
 
   // Follow the user
   const goal = new goals.GoalFollow(player.entity, 2);
   bot.pathfinder.setGoal(goal, true);
+
+  // Set the mode
+  mode.name = "guard";
+  mode.target = player;
 }
 
 function stop(username, args) {
@@ -308,19 +307,40 @@ bot.on("physicTick", () => {
   let mobFilter;
   if (mode.name === undefined) {
     mobFilter = (e) =>
-      e.type === "mob" && e.position.distanceTo(bot.entity.position) < 8;
-  } else if (mode.name === "gaurd") {
+      e.type === "mob" && e.position.distanceTo(bot.entity.position) < 16;
+  } else if (mode.name === "turret") {
+    mobFilter = (e) =>
+      e.type === "mob" && e.position.distanceTo(bot.entity.position) < 32;
+  } else if (mode.name === "guard") {
     mobFilter = (e) =>
       e.type === "mob" &&
-      e.position.distanceTo(mode.target.entity.position) < 8;
+      (e.position.distanceTo(mode.target.entity.position) < 16 ||
+        e.position.distanceTo(bot.entity.position < 8));
   }
 
-  // Get mob
-  const mob = bot.nearestEntity(mobFilter);
+  if (mode.name === undefined || mode.name === "guard") {
+    // Get mob
+    const mob = bot.nearestEntity(mobFilter);
 
-  if (mob) {
-    equipWeapons();
-    bot.pvp.attack(mob);
+    if (mob) {
+      equipWeapons();
+      bot.pvp.attack(mob);
+    } else if (mode.name === "guard" && mode.target.entity !== null) {
+      // Follow the user
+      const goal = new goals.GoalFollow(mode.target.entity, 2);
+      bot.pathfinder.setGoal(goal, true);
+    }
+  } else if (mode.name === "turret") {
+    // Get mob
+    const mob = bot.nearestEntity(mobFilter);
+    if (!mob) return;
+
+    if (mode.target === undefined) {
+      bot.hawkEye.autoAttack(mob, "bow");
+      mode.target = mob;
+    } else if (mode.target !== mob) {
+      mode.target = undefined;
+    }
   }
 });
 
@@ -328,6 +348,8 @@ bot.on("stoppedAttacking", () => {
   if (mode.name === undefined) {
     return;
   } else if (mode.name === "guard") {
-    guard(mode.target.username, [], false);
+    // Follow the user
+    const goal = new goals.GoalFollow(mode.target.entity, 2);
+    bot.pathfinder.setGoal(goal, true);
   }
 });
